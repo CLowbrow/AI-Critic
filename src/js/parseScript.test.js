@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { parseScript } from './parseScript.js';
 
 describe('parseScript', () => {
