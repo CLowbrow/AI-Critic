@@ -1,0 +1,13 @@
+# API clients
+anthropic
+elevenlabs
+requests
+
+# Utilities
+python-dotenv
+pydantic
+
+# Development
+pytest
+black
+flake8
