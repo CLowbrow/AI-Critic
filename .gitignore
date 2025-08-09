@@ -67,3 +67,6 @@ config/secrets.json
 # Temporary files
 tmp/
 temp/
+
+# Workspace for incremental video generation progress
+workspace/
