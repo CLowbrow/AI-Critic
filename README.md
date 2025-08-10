@@ -5,7 +5,7 @@ A modular video generation pipeline that creates art criticism dialogues, voice 
 ## Features
 
 - **🎨 AI Art Analysis**: Generate sophisticated art criticism dialogue using Claude
-- **🎙️ Voice Generation**: Convert dialogue to high-quality WAV speech using ElevenLabs (16kHz PCM)
+- **🎙️ Voice Generation**: Convert dialogue to high-quality MP3 and WAV speech using ElevenLabs (MP3 44.1kHz for video, WAV 16kHz for Audio2Face)
 - **🎭 MetaHuman Animation**: Generate facial animations for Unreal Engine via Audio2Face
 - **📁 Workspace Management**: Organized file structure for incremental video production
 - **🔧 Modular Pipeline**: Run individual steps or the complete workflow
@@ -20,7 +20,22 @@ A modular video generation pipeline that creates art criticism dialogues, voice 
    npm install
    ```
 
-2. **API Keys**
+2. **FFmpeg** (required for audio transcoding)
+   ```bash
+   # Ubuntu/Debian
+   sudo apt update && sudo apt install ffmpeg
+   
+   # macOS (with Homebrew)
+   brew install ffmpeg
+   
+   # Windows (with Chocolatey)
+   choco install ffmpeg
+   
+   # Verify installation
+   ffmpeg -version
+   ```
+
+3. **API Keys**
    ```bash
    # Required for script generation
    export ANTHROPIC_API_KEY='your-anthropic-api-key'
@@ -29,7 +44,7 @@ A modular video generation pipeline that creates art criticism dialogues, voice 
    export ELEVENLABS_API_KEY='your-elevenlabs-api-key'
    ```
 
-3. **Python Environment** (for Audio2Face → Unreal pipeline)
+4. **Python Environment** (for Audio2Face → Unreal pipeline)
    ```bash
    # One-time setup
    ./setup_python.sh
@@ -56,8 +71,10 @@ workspace/                 # Auto-generated workspaces (git-ignored)
 └── artwork_name_timestamp/
     ├── script.txt         # Raw generated script
     ├── dialogue.json      # Parsed dialogue lines
-    ├── audio/             # Generated voice files (WAV format)
-    │   ├── 01_elena.wav
+    ├── audio/             # Generated voice files (MP3 + WAV format)
+    │   ├── 01_elena.mp3   # High-quality MP3 for video processing  
+    │   ├── 01_elena.wav   # 16kHz WAV for Audio2Face
+    │   ├── 02_marcus.mp3
     │   ├── 02_marcus.wav
     │   └── ...
     └── unreal_assets/     # Generated animation assets
@@ -125,6 +142,28 @@ node src/js/voiceGeneration.js "workspace/starry_night_2025-08-09T12-00-00"
 node src/js/voiceGeneration.js "workspace/starry_night_2025-08-09T12-00-00"
 ```
 
+## Audio Quality & Dual Format Output
+
+The voice generation system creates **both MP3 and WAV formats** for optimal quality and compatibility:
+
+### High-Quality MP3 Files
+- Generated directly from ElevenLabs API (default high-quality format)
+- **44.1kHz sampling rate** for professional video production
+- Used by your video processing pipeline
+- Superior audio quality compared to PCM transcoding
+
+### Audio2Face-Optimized WAV Files
+- **16kHz mono WAV** files transcoded locally using ffmpeg
+- Specifically formatted for NVIDIA Audio2Face compatibility
+- Maintains facial animation quality while reducing API costs
+- Only one ElevenLabs API call needed per audio line
+
+### Benefits
+- **Cost Efficient**: Single API call generates both formats
+- **Quality Preservation**: No quality loss from ElevenLabs PCM format
+- **Local Control**: ffmpeg transcoding ensures consistent WAV format
+- **Workflow Optimization**: Each format optimized for its specific use case
+
 ## Voice Characters
 
 The system uses two distinct art critics:
@@ -140,11 +179,12 @@ Each generation creates a workspace with:
 workspace/artwork_name_timestamp/
 ├── script.txt              # Full dialogue script
 ├── dialogue.json           # Structured dialogue data
-├── audio/                  # Generated voice files (WAV format, 16kHz)
-│   ├── 01_elena.wav         # Elena's first line
-│   ├── 02_marcus.wav        # Marcus's first line
-│   ├── 03_elena.wav         # Elena's second line
-│   └── ...                  # Alternating dialogue
+├── audio/                  # Generated voice files (MP3 + WAV format)
+│   ├── 01_elena.mp3         # Elena's first line (44.1kHz MP3 for video)
+│   ├── 01_elena.wav         # Elena's first line (16kHz WAV for Audio2Face)  
+│   ├── 02_marcus.mp3        # Marcus's first line (44.1kHz MP3 for video)
+│   ├── 02_marcus.wav        # Marcus's first line (16kHz WAV for Audio2Face)
+│   └── ...                  # Alternating dialogue in both formats
 └── unreal_assets/          # MetaHuman animation files (generated separately)
     ├── 01_elena_animation.usd      # Unreal Engine import file
     ├── 01_elena_animation.json     # Raw animation data
@@ -158,6 +198,7 @@ workspace/artwork_name_timestamp/
 - **Invalid Workspaces**: Voice generation validates workspace structure
 - **Partial Failures**: Individual voice line failures don't stop the process
 - **File Conflicts**: Timestamped folders prevent overwrites
+- **Audio2Face Timeouts**: Configurable timeout prevents hanging (default: 3 minutes)
 
 ## Cost Optimization
 
@@ -165,6 +206,8 @@ workspace/artwork_name_timestamp/
 - **Voice-only runs**: Iterate on audio without re-generating scripts
 - **Workspace reuse**: Point voice generation at any existing folder
 - **Batch processing**: Generate multiple artworks efficiently
+- **Dual format efficiency**: Single ElevenLabs API call generates both MP3 and WAV formats
+- **Local transcoding**: Avoid additional API costs for format conversion
 
 ## Audio2Face → Unreal Engine Pipeline
 
@@ -194,6 +237,11 @@ python src/python/audio2face_unreal.py workspace/your_workspace_folder
 **Process single audio file:**
 ```bash
 python src/python/audio2face_unreal.py workspace/your_workspace/audio/01_elena.wav --single
+```
+
+**With custom timeout (default 3 minutes):**
+```bash
+python src/python/audio2face_unreal.py workspace/your_workspace_folder --timeout 300
 ```
 
 **Output files:**

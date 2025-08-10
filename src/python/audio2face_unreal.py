@@ -55,8 +55,9 @@ logger = logging.getLogger(__name__)
 class Audio2FaceUnrealProcessor:
     """Processes WAV files through Audio2Face and generates Unreal animation assets."""
     
-    def __init__(self, audio2face_url: str = "0.0.0.0:52000"):
+    def __init__(self, audio2face_url: str = "0.0.0.0:52000", timeout: int = 180):
         self.audio2face_url = audio2face_url
+        self.timeout = timeout  # 3 minutes timeout for Audio2Face processing
         self.channel = None
         self.stub = None
         
@@ -130,6 +131,50 @@ class Audio2FaceUnrealProcessor:
         logger.info(f"✅ Generated {len(generated_assets)} animation assets")
         return generated_assets
     
+    async def process_single_file(self, wav_file: Path, options: Dict[str, Any] = None) -> List[Path]:
+        """
+        Process a single WAV file.
+        
+        Args:
+            wav_file: Path to the WAV file to process
+            options: Processing options
+            
+        Returns:
+            List of generated asset file paths
+        """
+        if options is None:
+            options = {}
+            
+        if not wav_file.exists() or wav_file.suffix != '.wav':
+            raise ValueError(f"Invalid WAV file: {wav_file}")
+        
+        # Determine workspace and export directory
+        workspace_path = wav_file.parent.parent  # Assume file is in workspace/audio/
+        export_dir = workspace_path / 'unreal_assets'
+        export_dir.mkdir(exist_ok=True)
+        
+        logger.info(f"Processing single file: {wav_file.name}")
+        
+        try:
+            if NVIDIA_SDK_AVAILABLE:
+                # Process with official NVIDIA SDK
+                animation_data = await self._process_with_nvidia_sdk(wav_file, options)
+            else:
+                # Fallback to custom processing
+                animation_data = await self._process_with_custom_grpc(wav_file, options)
+            
+            # Generate animation assets
+            asset_files = await self._generate_animation_assets(
+                animation_data, wav_file.stem, export_dir, options
+            )
+            
+            logger.info(f"✅ Generated {len(asset_files)} animation assets for {wav_file.name}")
+            return asset_files
+            
+        except Exception as e:
+            logger.error(f"Failed to process {wav_file.name}: {e}")
+            raise
+    
     async def _process_with_nvidia_sdk(self, wav_file: Path, options: Dict[str, Any]) -> Dict[str, Any]:
         """Process audio file using official NVIDIA ACE SDK."""
         logger.info("Using NVIDIA ACE SDK for processing")
@@ -186,26 +231,47 @@ class Audio2FaceUnrealProcessor:
         animation_frames = []
         
         try:
-            response_stream = self.stub.ProcessAudioStream(iter(requests))
+            response_stream = self.stub.ProcessAudioStream(iter(requests), timeout=self.timeout)
             async for response in response_stream:
                 if response.HasField('animation_data'):
-                    # Debug: check what's actually in the response
-                    logger.debug(f"Animation data fields: {response.animation_data.DESCRIPTOR.fields_by_name.keys()}")
                     
-                    # Try different ways to access blendshape data
+                    # Extract blendshape data from skel_animation
                     blendshape_weights = []
-                    if hasattr(response.animation_data, 'blendshape_weights'):
-                        blendshape_weights = list(response.animation_data.blendshape_weights)
-                    elif hasattr(response.animation_data, 'skel_anim'):
-                        if hasattr(response.animation_data.skel_anim, 'blendshape_weights'):
-                            blendshape_weights = list(response.animation_data.skel_anim.blendshape_weights)
+                    time_code = 0
+                    
+                    if hasattr(response.animation_data, 'skel_animation'):
+                        skel_animation = response.animation_data.skel_animation
+                        if hasattr(skel_animation, 'blend_shape_weights'):
+                            blend_shape_weights_list = skel_animation.blend_shape_weights
+                            
+                            # Extract data from the first blend_shape_weights entry (should contain all blendshapes)
+                            if len(blend_shape_weights_list) > 0:
+                                blend_shape_weights = blend_shape_weights_list[0]
+                                
+                                # Extract time code from first entry
+                                time_code = getattr(blend_shape_weights, 'time_code', 0)
+                                
+                                # Extract ALL values from this entry (contains all blendshape weights)
+                                if hasattr(blend_shape_weights, 'values'):
+                                    blendshape_weights = list(blend_shape_weights.values)
+                                    logger.debug(f"Extracted {len(blendshape_weights)} blendshape weights, time={time_code}")
+                                else:
+                                    logger.warning("No 'values' field in blend_shape_weights")
+                                    logger.debug(f"Available fields: {[field.name for field in blend_shape_weights.DESCRIPTOR.fields] if hasattr(blend_shape_weights, 'DESCRIPTOR') else 'No DESCRIPTOR'}")
+                            else:
+                                logger.warning("blend_shape_weights list is empty")
+                        else:
+                            logger.warning("No 'blend_shape_weights' field in skel_animation")
+                    else:
+                        logger.warning("No 'skel_animation' field in animation_data")
                     
                     frame_data = {
-                        'time_code': getattr(response.animation_data, 'time_code', 0),
+                        'time_code': time_code,
                         'blendshape_weights': blendshape_weights
                     }
                     animation_frames.append(frame_data)
-                    logger.debug(f"Frame {len(animation_frames)}: {len(blendshape_weights)} blendshapes")
+                    if len(animation_frames) % 100 == 0:  # Log every 100th frame to avoid spam
+                        logger.info(f"Processed {len(animation_frames)} frames, latest time={time_code}, {len(blendshape_weights)} blendshapes")
                     
         except grpc.aio.AioRpcError as e:
             logger.error(f"gRPC error during processing: {e}")
@@ -286,13 +352,18 @@ class Audio2FaceUnrealProcessor:
                 time_samples = [f['time_code'] for f in frames]
                 blendshape_data = [f['blendshape_weights'] for f in frames]
                 
-                # Create blend shape weights attribute
-                weights_attr = skel.CreateBlendShapeWeightsAttr()
+                # Create custom blendshape weights attribute for MetaHuman compatibility
+                weights_attr = skel.GetPrim().CreateAttribute(
+                    'blendShapeWeights', 
+                    Sdf.ValueTypeNames.FloatArray, 
+                    False  # Not custom
+                )
                 
                 for i, (time, weights) in enumerate(zip(time_samples, blendshape_data)):
                     # Convert time to USD time code (assuming 30fps)
                     usd_time = time * 30  
-                    weights_attr.Set(Vt.FloatArray(weights), usd_time)
+                    if weights:  # Only set if we have actual weights
+                        weights_attr.Set(Vt.FloatArray(weights), usd_time)
             
             # Save the stage
             stage.Save()
@@ -382,6 +453,7 @@ async def main():
     parser.add_argument('input_path', help='Workspace path or single WAV file')
     parser.add_argument('--single', action='store_true', help='Process single file instead of workspace')
     parser.add_argument('--audio2face-url', default='0.0.0.0:52000', help='Audio2Face gRPC service URL')
+    parser.add_argument('--timeout', type=int, default=180, help='Timeout in seconds for Audio2Face processing (default: 180)')
     parser.add_argument('--config', help='YAML config file for Audio2Face settings')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging')
     
@@ -397,7 +469,7 @@ async def main():
         sys.exit(1)
     
     # Create processor
-    processor = Audio2FaceUnrealProcessor(args.audio2face_url)
+    processor = Audio2FaceUnrealProcessor(args.audio2face_url, args.timeout)
     
     try:
         # Connect to Audio2Face
@@ -417,8 +489,7 @@ async def main():
                 print(f"❌ Single file must be a WAV file: {input_path}")
                 sys.exit(1)
             
-            workspace_path = input_path.parent.parent  # Assume file is in workspace/audio/
-            generated_assets = await processor.process_workspace(workspace_path, options)
+            generated_assets = await processor.process_single_file(input_path, options)
         else:
             # Process workspace
             generated_assets = await processor.process_workspace(input_path, options)
