@@ -1,0 +1,12 @@
+# Core dependencies
+grpcio>=1.50.0
+grpcio-tools>=1.50.0
+protobuf>=4.21.0
+pyyaml>=6.0
+numpy>=1.20.0
+
+# USD library for Unreal export
+usd-core>=23.5
+
+# Optional: NVIDIA ACE SDK (install from wheel)
+# nvidia_ace>=1.2.0  # Install from workspace/proto/sample_wheel/nvidia_ace-1.2.0-py3-none-any.whl

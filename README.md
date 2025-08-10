@@ -1,11 +1,12 @@
 # AI-Critic
 
-A modular video generation pipeline that creates art criticism dialogues and voice narration using Claude and ElevenLabs APIs.
+A modular video generation pipeline that creates art criticism dialogues, voice narration, and MetaHuman facial animations using Claude, ElevenLabs, and NVIDIA Audio2Face.
 
 ## Features
 
 - **🎨 AI Art Analysis**: Generate sophisticated art criticism dialogue using Claude
-- **🎙️ Voice Generation**: Convert dialogue to high-quality speech using ElevenLabs
+- **🎙️ Voice Generation**: Convert dialogue to high-quality WAV speech using ElevenLabs (16kHz PCM)
+- **🎭 MetaHuman Animation**: Generate facial animations for Unreal Engine via Audio2Face
 - **📁 Workspace Management**: Organized file structure for incremental video production
 - **🔧 Modular Pipeline**: Run individual steps or the complete workflow
 - **💰 Cost Efficient**: Re-run individual steps without burning API credits
@@ -28,32 +29,40 @@ A modular video generation pipeline that creates art criticism dialogues and voi
    export ELEVENLABS_API_KEY='your-elevenlabs-api-key'
    ```
 
-### Python Environment (Optional)
-```bash
-# Activate virtual environment
-source activate.sh  # or source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
+3. **Python Environment** (for Audio2Face → Unreal pipeline)
+   ```bash
+   # One-time setup
+   ./setup_python.sh
+   
+   # For each session
+   source venv/bin/activate
+   ```
 
 ## Project Structure
 
 ```
-src/js/
-├── generateScript.js      # Main pipeline orchestrator
-├── scriptGeneration.js    # Claude API integration (text generation)
-├── voiceGeneration.js     # ElevenLabs API integration (speech synthesis)
-├── parseScript.js         # Script parsing utilities
-└── workspaceUtils.js      # Workspace management utilities
+src/
+├── js/                    # JavaScript pipeline (Text → Voice)
+│   ├── generateScript.js      # Main pipeline orchestrator
+│   ├── scriptGeneration.js    # Claude API integration (text generation)
+│   ├── voiceGeneration.js     # ElevenLabs API integration (speech synthesis)
+│   ├── parseScript.js         # Script parsing utilities
+│   └── workspaceUtils.js      # Workspace management utilities
+└── python/                # Python pipeline (Voice → Animation)
+    ├── audio2face_unreal.py   # Audio2Face → Unreal animation processor
+    └── requirements.txt       # Python dependencies
 
 workspace/                 # Auto-generated workspaces (git-ignored)
 └── artwork_name_timestamp/
     ├── script.txt         # Raw generated script
     ├── dialogue.json      # Parsed dialogue lines
-    └── audio/             # Generated voice files
-        ├── 01_elena.mp3
-        ├── 02_marcus.mp3
+    ├── audio/             # Generated voice files (WAV format)
+    │   ├── 01_elena.wav
+    │   ├── 02_marcus.wav
+    │   └── ...
+    └── unreal_assets/     # Generated animation assets
+        ├── 01_elena_animation.usd
+        ├── 01_elena_animation.json
         └── ...
 ```
 
@@ -131,11 +140,16 @@ Each generation creates a workspace with:
 workspace/artwork_name_timestamp/
 ├── script.txt              # Full dialogue script
 ├── dialogue.json           # Structured dialogue data
-└── audio/
-    ├── 01_elena.mp3         # Elena's first line
-    ├── 02_marcus.mp3        # Marcus's first line
-    ├── 03_elena.mp3         # Elena's second line
-    └── ...                  # Alternating dialogue
+├── audio/                  # Generated voice files (WAV format, 16kHz)
+│   ├── 01_elena.wav         # Elena's first line
+│   ├── 02_marcus.wav        # Marcus's first line
+│   ├── 03_elena.wav         # Elena's second line
+│   └── ...                  # Alternating dialogue
+└── unreal_assets/          # MetaHuman animation files (generated separately)
+    ├── 01_elena_animation.usd      # Unreal Engine import file
+    ├── 01_elena_animation.json     # Raw animation data
+    ├── 01_elena_metadata.json      # File information
+    └── ...                         # One set per audio file
 ```
 
 ## Error Handling
@@ -152,10 +166,62 @@ workspace/artwork_name_timestamp/
 - **Workspace reuse**: Point voice generation at any existing folder
 - **Batch processing**: Generate multiple artworks efficiently
 
+## Audio2Face → Unreal Engine Pipeline
+
+After generating WAV files, process them through Audio2Face to create MetaHuman animations:
+
+### Prerequisites
+
+1. **Python Environment**
+   ```bash
+   # Activate your Python environment (if not already active)
+   source venv/bin/activate
+   ```
+
+2. **Audio2Face Service**
+   ```bash
+   # Start headless Audio2Face service
+   docker run -it --rm --network host -e NGC_API_KEY nvcr.io/nim/nvidia/audio2face-3d:1.3.16
+   ```
+
+### Generate MetaHuman Animations
+
+**Process entire workspace:**
+```bash
+python src/python/audio2face_unreal.py workspace/your_workspace_folder
+```
+
+**Process single audio file:**
+```bash
+python src/python/audio2face_unreal.py workspace/your_workspace/audio/01_elena.wav --single
+```
+
+**Output files:**
+- `{name}_animation.usd` - Import directly into Unreal Engine
+- `{name}_animation.json` - Raw animation data for custom workflows  
+- `{name}_metadata.json` - Import instructions and file info
+
+### Complete Workflow
+
+```bash
+# 1. Generate script and voice files
+node src/js/generateScript.js "artwork.jpg" "Title" "Artist"
+
+# 2. Start Audio2Face service (in separate terminal)
+docker run -it --rm --network host -e NGC_API_KEY nvcr.io/nim/nvidia/audio2face-3d:1.3.16
+
+# 3. Generate MetaHuman animations
+python src/python/audio2face_unreal.py workspace/your_workspace_folder
+
+# 4. Import USD files into Unreal Engine
+# 5. Apply animations to MetaHuman characters
+# 6. Use Movie Render Queue for video generation
+```
+
 ## Next Steps
 
 Generated files are ready for:
-- Video editing software import
-- Unreal Engine integration
-- Further post-processing
-- Distribution/publishing
+- **Unreal Engine**: Import USD files for MetaHuman animation
+- **Video Production**: Use Movie Render Queue for automated video generation
+- **Custom Workflows**: Process JSON animation data with custom scripts
+- **Distribution/Publishing**: Batch render multiple character animations

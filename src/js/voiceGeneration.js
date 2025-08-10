@@ -78,14 +78,15 @@ async function generateAudioFiles(dialogueLines, audioDir) {
       // Get voice ID for speaker (default to Rachel if not found)
       const voiceId = voiceMap[speaker] || voiceMap['CRITIC B'];
       
-      // Generate speech using ElevenLabs
+      // Generate speech using ElevenLabs (PCM 16kHz for Audio2Face compatibility)
       const audio = await elevenlabs.textToSpeech.convert(voiceId, {
         text: line,
         modelId: 'eleven_multilingual_v2',
+        outputFormat: 'pcm_16000',
       });
 
       // Save audio to file
-      const audioFilename = `${String(i + 1).padStart(2, '0')}_${speaker.replace(/\s+/g, '_').toLowerCase()}.mp3`;
+      const audioFilename = `${String(i + 1).padStart(2, '0')}_${speaker.replace(/\s+/g, '_').toLowerCase()}.wav`;
       const audioPath = path.join(audioDir, audioFilename);
       
       // Convert audio stream to buffer and save

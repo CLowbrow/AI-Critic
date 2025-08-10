@@ -18,9 +18,6 @@
     "@elevenlabs/elevenlabs-js": "^2.8.0",
     "sharp": "^0.34.3"
   },
-  "jest": {
-    "testEnvironment": "node"
-  },
   "devDependencies": {
     "vitest": "^3.2.4"
   }
