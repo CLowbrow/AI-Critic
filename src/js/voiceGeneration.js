@@ -42,48 +42,34 @@ export async function generateVoiceLines(workspacePath) {
 
     console.log(`Found ${dialogueLines.length} dialogue lines`);
 
-    // Generate audio files in both MP3 and WAV formats
-    const { mp3Files, wavFiles } = await generateAudioFiles(dialogueLines, paths.audio);
+    // Generate audio files in MP3 format
+    const mp3Files = await generateAudioFiles(dialogueLines, paths.audio);
 
-    return { mp3Files, wavFiles };
+    return { mp3Files };
   } catch (error) {
     console.error('Error generating voice lines:', error.message);
     throw error;
   }
 }
 
-/**
- * Convert MP3 file to WAV format using ffmpeg (16kHz mono for Audio2Face)
- * @param {string} mp3Path - Path to the input MP3 file
- * @param {string} wavPath - Path to the output WAV file
- * @returns {Promise<void>}
- */
-async function convertMp3ToWav(mp3Path, wavPath) {
-  try {
-    await execAsync(`ffmpeg -y -i "${mp3Path}" -ar 16000 -ac 1 -sample_fmt s16 "${wavPath}"`);
-  } catch (error) {
-    throw new Error(`Failed to convert MP3 to WAV: ${error.message}`);
-  }
-}
 
 /**
- * Generate audio files for each dialogue line in both MP3 and WAV formats
+ * Generate audio files for each dialogue line in MP3 format
  * @param {Array<{speaker: string, line: string}>} dialogueLines - Parsed dialogue lines
  * @param {string} audioDir - Directory to save audio files
- * @returns {Promise<{mp3Files: string[], wavFiles: string[]}>} Object with arrays of generated file paths
+ * @returns {Promise<string[]>} Array of generated MP3 file paths
  */
 async function generateAudioFiles(dialogueLines, audioDir) {
   const mp3Files = [];
-  const wavFiles = [];
 
   // Define voice IDs for each critic (you can customize these)
   const voiceMap = {
-    'CRITIC A': 'EXAVITQu4vr4xnSDxMaL', // Bella - professional, articulate
-    'CRITIC B': '21m00Tcm4TlvDq8ikWAM', // Rachel - conversational, warm
-    'Elena': 'EXAVITQu4vr4xnSDxMaL', // Bella
-    'Marcus': '21m00Tcm4TlvDq8ikWAM', // Rachel
-    'ELENA': 'EXAVITQu4vr4xnSDxMaL', // Bella (uppercase variant)
-    'MARCUS': '21m00Tcm4TlvDq8ikWAM', // Rachel (uppercase variant)
+    'CRITIC A': 'gOZRcEzY40chlRuMDmLV', 
+    'CRITIC B': 'giAoKpl5weRTCJK7uB9b', 
+    'Elena': 'gOZRcEzY40chlRuMDmLV', 
+    'Marcus': 'giAoKpl5weRTCJK7uB9b', 
+    'ELENA': 'gOZRcEzY40chlRuMDmLV', 
+    'MARCUS': 'giAoKpl5weRTCJK7uB9b', 
   };
 
   console.log('Generating high-quality MP3 files with ElevenLabs...');
@@ -103,10 +89,9 @@ async function generateAudioFiles(dialogueLines, audioDir) {
         modelId: 'eleven_multilingual_v2',
       });
 
-      // Create file paths
+      // Create file path
       const baseFilename = `${String(i + 1).padStart(2, '0')}_${speaker.replace(/\s+/g, '_').toLowerCase()}`;
       const mp3Path = path.join(audioDir, `${baseFilename}.mp3`);
-      const wavPath = path.join(audioDir, `${baseFilename}.wav`);
       
       // Convert audio stream to buffer and save MP3
       const chunks = [];
@@ -118,19 +103,13 @@ async function generateAudioFiles(dialogueLines, audioDir) {
       mp3Files.push(mp3Path);
       console.log(`✅ MP3 saved: ${path.basename(mp3Path)}`);
       
-      // Convert MP3 to WAV (16kHz mono) for Audio2Face
-      console.log(`🔄 Converting to WAV for Audio2Face: ${path.basename(wavPath)}`);
-      await convertMp3ToWav(mp3Path, wavPath);
-      wavFiles.push(wavPath);
-      console.log(`✅ WAV saved: ${path.basename(wavPath)}`);
-      
     } catch (error) {
       console.error(`❌ Error generating audio for ${speaker}:`, error.message);
       // Continue with other lines even if one fails
     }
   }
 
-  return { mp3Files, wavFiles };
+  return mp3Files;
 }
 
 // Allow running as standalone script
@@ -154,17 +133,13 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   }
   
   generateVoiceLines(workspacePath)
-    .then(({ mp3Files, wavFiles }) => {
+    .then(({ mp3Files }) => {
       console.log('\n✅ Voice Generation Complete!');
       console.log('='.repeat(50));
       console.log(`Workspace: ${workspacePath}`);
-      console.log(`Generated ${mp3Files.length} MP3 files and ${wavFiles.length} WAV files`);
-      console.log('\nMP3 Files (for video processing):');
+      console.log(`Generated ${mp3Files.length} MP3 files`);
+      console.log('\nMP3 Files:');
       mp3Files.forEach((file, index) => {
-        console.log(`${index + 1}. ${path.basename(file)}`);
-      });
-      console.log('\nWAV Files (for Audio2Face):');
-      wavFiles.forEach((file, index) => {
         console.log(`${index + 1}. ${path.basename(file)}`);
       });
     })

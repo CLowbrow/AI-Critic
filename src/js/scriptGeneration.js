@@ -2,12 +2,18 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import Anthropic from '@anthropic-ai/sdk';
+import { wrapAnthropic, initLogger } from 'braintrust';
 import { parseScript } from './parseScript.js';
 import { createWorkspaceStructure, getWorkspacePaths, validateWorkspace } from './workspaceUtils.js';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const logger = initLogger({
+  projectName: "Say Hi Bot",
+  apiKey: process.env.BRAINTRUST_API_KEY,
 });
+
+const anthropic = wrapAnthropic(new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+}));
 
 /**
  * Generate a script using Anthropic and save to workspace
@@ -139,8 +145,8 @@ function createSystemPrompt() {
   return `You are tasked with creating a video script for an art criticism discussion between two distinct critics. The script should be formatted for a 3-minute video.
 
 CRITIC PERSONALITIES:
-- Critic A (Elena): Academic, formal, focuses on historical context and artistic techniques. Uses sophisticated vocabulary and references art movements and theory.
-- Critic B (Marcus): Contemporary, accessible, focuses on emotional impact and modern relevance. Uses conversational language and relates art to current culture.
+- Critic A (Elena): Is knowledgable about art but largely focuses on the emotional reactions she has to it. Overuses allegory. Will make metacommentary. Somewhat monotone so the writing should match that. 
+- Critic B (Marcus): Academic and formal, focuses on the structural aspects of art, history, cultural context, that kind of thing. The "straight man" in this duo. 
 
 SCRIPT FORMAT (for easy parsing):
 [CRITIC A]: [dialogue]
@@ -151,9 +157,14 @@ SCRIPT FORMAT (for easy parsing):
 REQUIREMENTS:
 - Target length: approximately 3 minutes (roughly 450-500 words of dialogue)
 - Each critic should have 3-4 speaking turns
-- Include natural conversational flow with some disagreement/different perspectives
+- The critics provide opinions of the artwork that conflict
 - Focus on the specific artwork provided
-- End with both critics finding some common ground or appreciation
+- The critics do not agree, but they do not argue.
+- There is no consensus reached at the end (no one says things like "I am beginning to see your point")
+- The critics never say it explicitly, but they like each other. 
+- Do not add stage direction or actions. These are voice lines only. Dialogue is ONLY what people are saying, not what they are doing.
+- The critics do not use each other's names or use pet names for each other like "darling".
+- The critics do not try to invalidate each other's points.
 
 The script should feel natural and engaging while maintaining each critic's distinct voice and perspective.`;
 }

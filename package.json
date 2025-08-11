@@ -16,6 +16,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.58.0",
     "@elevenlabs/elevenlabs-js": "^2.8.0",
+    "braintrust": "^0.2.3",
     "sharp": "^0.34.3"
   },
   "devDependencies": {

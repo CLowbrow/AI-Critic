@@ -20,14 +20,13 @@ export async function generateScript(imagePath, title, artist) {
     
     // Step 2: Generate voice lines using ElevenLabs
     console.log('\n🎙️  Step 2: Generating voice lines...');
-    const { mp3Files, wavFiles } = await generateVoiceLines(scriptResult.workspacePath);
+    const { mp3Files } = await generateVoiceLines(scriptResult.workspacePath);
 
     console.log('\n✅ Full Pipeline Complete!');
     return {
       script: scriptResult.script,
       workspacePath: scriptResult.workspacePath,
-      mp3Files,
-      wavFiles
+      mp3Files
     };
   } catch (error) {
     console.error('❌ Pipeline failed:', error.message);
@@ -69,23 +68,18 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
       console.log('\n🎉 Generation Complete!');
       console.log('='.repeat(60));
       console.log(`📁 Workspace: ${result.workspacePath}`);
-      console.log(`🎵 Generated ${result.mp3Files.length} MP3 files and ${result.wavFiles.length} WAV files`);
+      console.log(`🎵 Generated ${result.mp3Files.length} MP3 files`);
       console.log('\n📜 Generated Script Preview:');
       console.log('-'.repeat(40));
       console.log(result.script.substring(0, 300) + '...');
-      console.log('\n🎵 MP3 Files (for video processing):');
+      console.log('\n🎵 MP3 Files:');
       result.mp3Files.forEach((file, index) => {
         console.log(`${index + 1}. ${path.basename(file)}`);
       });
-      console.log('\n🔊 WAV Files (for Audio2Face):');
-      result.wavFiles.forEach((file, index) => {
-        console.log(`${index + 1}. ${path.basename(file)}`);
-      });
       console.log('\n💡 Next steps:');
-      console.log(`   • MP3 files (video processing): ${path.join(result.workspacePath, 'audio')}/*.mp3`);
-      console.log(`   • WAV files (Audio2Face): ${path.join(result.workspacePath, 'audio')}/*.wav`);
+      console.log(`   • MP3 files: ${path.join(result.workspacePath, 'audio')}/*.mp3`);
       console.log(`   • Script files are in: ${result.workspacePath}`);
-      console.log('   • Ready for video production and facial animation!');
+      console.log('   • Ready for video production with Unreal Audio Driven Animation!');
     })
     .catch(error => {
       console.error('❌ Failed to generate content:', error.message);
