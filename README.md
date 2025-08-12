@@ -48,8 +48,8 @@ A modular video generation pipeline that creates art criticism dialogues and voi
 ```
 src/
 ├── js/                    # JavaScript pipeline (Text → Voice)
-│   ├── generateScript.js      # Main pipeline orchestrator
-│   ├── scriptGeneration.js    # Claude API integration (text generation)
+│   ├── generateFullPipeline.js  # Main pipeline orchestrator (script + voice)
+│   ├── generateScriptText.js   # Claude API integration (text generation only)
 │   ├── voiceGeneration.js     # ElevenLabs API integration (speech synthesis)
 │   ├── parseScript.js         # Script parsing utilities
 │   └── workspaceUtils.js      # Workspace management utilities
@@ -73,7 +73,7 @@ workspace/                 # Auto-generated workspaces (git-ignored)
 Generate both script and voice files in one command:
 
 ```bash
-node src/js/generateScript.js "sample/sample_image.png" "Electric Dreams" "AI"
+node src/js/generateFullPipeline.js "sample/sample_image.png" "Electric Dreams" "AI"
 ```
 
 **Output:**
@@ -90,7 +90,7 @@ node src/js/generateScript.js "sample/sample_image.png" "Electric Dreams" "AI"
 Generate script and dialogue files without voice synthesis:
 
 ```bash
-node src/js/scriptGeneration.js "sample/sample_image.png" "Electric Dreams" "AI"
+node src/js/generateScriptText.js "sample/sample_image.png" "Electric Dreams" "AI"
 ```
 
 **Use when:**
@@ -116,7 +116,7 @@ node src/js/voiceGeneration.js "workspace/electric_dreams_2025-08-09T00-42-24"
 
 ```bash
 # 1. Generate script first (uses Claude API)
-node src/js/scriptGeneration.js "my-artwork.jpg" "Starry Night" "Van Gogh"
+node src/js/generateScriptText.js "my-artwork.jpg" "Starry Night" "Van Gogh"
 
 # 2. Iterate on voice generation (uses ElevenLabs API)
 node src/js/voiceGeneration.js "workspace/starry_night_2025-08-09T12-00-00"
@@ -202,7 +202,7 @@ The generated MP3 files are designed to work with Unreal Engine's new Audio Driv
 
 ```bash
 # 1. Generate script and voice files
-node src/js/generateScript.js "artwork.jpg" "Title" "Artist"
+node src/js/generateFullPipeline.js "artwork.jpg" "Title" "Artist"
 
 # 2. Import MP3 files into Unreal Engine
 # 3. Set up Audio Driven Animation on MetaHuman characters

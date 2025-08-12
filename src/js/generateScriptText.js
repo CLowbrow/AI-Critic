@@ -225,9 +225,9 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   const args = process.argv.slice(2);
   
   if (args.length < 3 || args.length > 4) {
-    console.error('Usage: node scriptGeneration.js <image-path> <title> <artist> [workspace-path]');
-    console.error('Example: node scriptGeneration.js ./artwork.jpg "The Starry Night" "Vincent van Gogh"');
-    console.error('Example: node scriptGeneration.js ./artwork.jpg "The Starry Night" "Vincent van Gogh" workspace/existing_folder');
+    console.error('Usage: node generateScriptText.js <image-path> <title> <artist> [workspace-path]');
+    console.error('Example: node generateScriptText.js ./artwork.jpg "The Starry Night" "Vincent van Gogh"');
+    console.error('Example: node generateScriptText.js ./artwork.jpg "The Starry Night" "Vincent van Gogh" workspace/existing_folder');
     process.exit(1);
   }
 

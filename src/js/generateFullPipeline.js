@@ -1,5 +1,5 @@
 import path from 'path';
-import { generateScript as generateScriptContent } from './scriptGeneration.js';
+import { generateScript as generateScriptContent } from './generateScriptText.js';
 import { generateVoiceLines } from './voiceGeneration.js';
 
 /**
@@ -39,13 +39,13 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   const args = process.argv.slice(2);
   
   if (args.length !== 3) {
-    console.error('Usage: node generateScript.js <image-path> <title> <artist>');
-    console.error('Example: node generateScript.js ./artwork.jpg "The Starry Night" "Vincent van Gogh"');
+    console.error('Usage: node generateFullPipeline.js <image-path> <title> <artist>');
+    console.error('Example: node generateFullPipeline.js ./artwork.jpg "The Starry Night" "Vincent van Gogh"');
     console.error('');
     console.error('This runs the full pipeline: script generation + voice generation');
     console.error('');
     console.error('To run individual steps:');
-    console.error('  node src/js/scriptGeneration.js <image-path> <title> <artist>');
+    console.error('  node src/js/generateScriptText.js <image-path> <title> <artist>');
     console.error('  node src/js/voiceGeneration.js <workspace-path>');
     process.exit(1);
   }
