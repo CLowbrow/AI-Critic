@@ -1,6 +1,7 @@
 import path from 'path';
 import { generateScript as generateScriptContent } from './generateScriptText.js';
 import { generateVoiceLines } from './voiceGeneration.js';
+import readline from 'readline';
 
 /**
  * Full pipeline: Generate script and voice lines for artwork
@@ -34,6 +35,18 @@ export async function generateScript(imagePath, title, artist) {
   }
 }
 
+function askQuestion(query) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+
+    return new Promise(resolve => rl.question(query, ans => {
+        rl.close();
+        resolve(ans);
+    }))
+}
+
 // Allow running as standalone script
 if (process.argv[1] === new URL(import.meta.url).pathname) {
   const args = process.argv.slice(2);
@@ -63,26 +76,59 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
 
   const [imagePath, title, artist] = args;
   
-  generateScript(imagePath, title, artist)
-    .then(result => {
-      console.log('\n🎉 Generation Complete!');
-      console.log('='.repeat(60));
-      console.log(`📁 Workspace: ${result.workspacePath}`);
-      console.log(`🎵 Generated ${result.mp3Files.length} MP3 files`);
-      console.log('\n📜 Generated Script Preview:');
-      console.log('-'.repeat(40));
-      console.log(result.script.substring(0, 300) + '...');
-      console.log('\n🎵 MP3 Files:');
-      result.mp3Files.forEach((file, index) => {
-        console.log(`${index + 1}. ${path.basename(file)}`);
-      });
-      console.log('\n💡 Next steps:');
-      console.log(`   • MP3 files: ${path.join(result.workspacePath, 'audio')}/*.mp3`);
-      console.log(`   • Script files are in: ${result.workspacePath}`);
-      console.log('   • Ready for video production with Unreal Audio Driven Animation!');
-    })
-    .catch(error => {
-      console.error('❌ Failed to generate content:', error.message);
-      process.exit(1);
-    });
+  (async () => {
+    try {
+        let scriptResult;
+        let userChoice;
+
+        do {
+            console.log('\n📝 Generating script...');
+            scriptResult = await generateScriptContent(imagePath, title, artist);
+
+            console.log('\n\n--- GENERATED SCRIPT ---');
+            console.log(scriptResult.script);
+            console.log('------------------------\n');
+
+            console.log('Choose an option:');
+            console.log('[1] Continue with generation');
+            console.log('[2] Regenerate script');
+            console.log('[3] Exit');
+
+            userChoice = await askQuestion('> ');
+
+            if (userChoice === '3') {
+                console.log('Exiting program.');
+                process.exit(0);
+            }
+        } while (userChoice === '2');
+
+        if (userChoice !== '1') {
+            console.log('Invalid choice. Exiting.');
+            process.exit(1);
+        }
+
+        console.log('\n🎙️  Generating voice lines...');
+        const { mp3Files } = await generateVoiceLines(scriptResult.workspacePath);
+
+        console.log('\n🎉 Generation Complete!');
+        console.log('='.repeat(60));
+        console.log(`📁 Workspace: ${scriptResult.workspacePath}`);
+        console.log(`🎵 Generated ${mp3Files.length} MP3 files`);
+        console.log('\n📜 Generated Script Preview:');
+        console.log('-'.repeat(40));
+        console.log(scriptResult.script.substring(0, 300) + '...');
+        console.log('\n🎵 MP3 Files:');
+        mp3Files.forEach((file, index) => {
+            console.log(`${index + 1}. ${path.basename(file)}`);
+        });
+        console.log('\n💡 Next steps:');
+        console.log(`   • MP3 files: ${path.join(scriptResult.workspacePath, 'audio')}/*.mp3`);
+        console.log(`   • Script files are in: ${scriptResult.workspacePath}`);
+        console.log('   • Ready for video production with Unreal Audio Driven Animation!');
+
+    } catch (error) {
+        console.error('❌ Failed to generate content:', error.message);
+        process.exit(1);
+    }
+  })();
 }
